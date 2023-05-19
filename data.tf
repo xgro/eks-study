@@ -33,3 +33,7 @@ data "aws_ami" "eks_default_bottlerocket" {
     values = ["bottlerocket-aws-k8s-${local.cluster_version}-x86_64-*"]
   }
 }
+
+# data "aws_eks_cluster_auth" "eks_cluster" {
+#   name = module.eks.cluster_name
+# }

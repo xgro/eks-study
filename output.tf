@@ -2,27 +2,8 @@ output "EC2_BASTION_HOST_IP" {
   value = aws_instance.ec2_bastion_host.public_ip
 }
 
-# output "private_subnets_cidr_blocks" {
-#   description = "List of cidr_blocks of private subnets"
-#   value       = module.vpc.private_subnets_cidr_blocks
-# }
-
-# output "public_subnets_cidr_blocks" {
-#   description = "List of cidr_blocks of public subnets"
-#   value       = module.vpc.public_subnets_cidr_blocks
-# }
-
 output "my_ip" {
   value = "${chomp(data.http.ipinfo.body)}"
-}
-
-output "key_pair" {
-  value = module.key_pair.key_pair_name
-}
-
-output "key_pem" {
-  description = "Public key data in PEM (RFC 1421) format"
-  value       = module.key_pair.public_key_pem
 }
 
 # ################################################################################

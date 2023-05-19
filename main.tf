@@ -1,5 +1,33 @@
 # module "eks" {
 #   source = "terraform-aws-modules/eks/aws"
+
+#   cluster_name                          = var.cluster_name
+#   cluster_version                       = var.cluster_version
+#   cluster_endpoint_private_access       = true
+#   cluster_endpoint_public_access        = true
+#   cluster_additional_security_group_ids = [aws_security_group.security_group_eks_cluster.id]
+
+#   vpc_id     = module.vpc.vpc_id
+#   subnet_ids = module.vpc.private_subnets
+
+#   eks_managed_node_groups = {
+#     # Default node group - as provided by AWS EKS
+#     "${var.cluster_node_group_name}" = {
+#       # disk_size = 50
+#       desired_size   = 2
+#       min_size       = 2
+#       max_size       = 5
+#       instance_types = ["t3.medium"]
+#       capacity_type  = "SPOT"
+#     }
+#   }
+
+# }
+
+
+
+# module "eks" {
+#   source = "terraform-aws-modules/eks/aws"
 #   version = "19.10.0"
 
 #   create = var.create_eks
@@ -117,47 +145,6 @@
 
 #   tags = local.tags
 # }
-
-
-module "vpc" {
-  source = "terraform-aws-modules/vpc/aws"
-
-  name = local.name
-  cidr = local.vpc_cidr
-
-  azs             = local.azs
-  private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k)]
-  public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 10)]
-  intra_subnets   = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 20)]
-
-  enable_dns_hostnames = true
-  enable_dns_support   = true
-
-  enable_nat_gateway = false
-  single_nat_gateway = false
-
-  # create_database_subnet_group  = false
-  # manage_default_network_acl    = false
-  # manage_default_route_table    = false
-  # manage_default_security_group = false
-
-  enable_flow_log                      = true
-  create_flow_log_cloudwatch_iam_role  = true
-  create_flow_log_cloudwatch_log_group = true
-
-  public_subnet_tags = {
-    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
-    "kubernetes.io/role/elb"                        = "1"
-  }
-
-  private_subnet_tags = {
-    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
-    "kubernetes.io/role/internal-elb"               = "1"
-  }
-
-  tags = local.tags
-}
-
 
 # resource "aws_security_group" "security_group_eks_cluster" {
 #   name        = "security_group_eks_cluster"

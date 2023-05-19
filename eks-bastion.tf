@@ -1,14 +1,3 @@
-module "key_pair" {
-  source  = "terraform-aws-modules/key-pair/aws"
-  version = "~> 2.0"
-
-  # key_name_prefix    = local.name
-  key_name = var.ec2_key_pair
-  create_private_key = true
-
-  tags = local.tags
-}
-
 data "aws_ami" "amazon_linux_2" {
   most_recent = true
   filter {
@@ -18,7 +7,20 @@ data "aws_ami" "amazon_linux_2" {
 
   filter {
     name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-ebs"]
+    values = ["amzn2-ami-hvm-*-gp2"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+  filter {
+    name   = "architecture"
+    values = ["arm64"]
+  }
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
   }
 
   owners = ["amazon"]
@@ -37,13 +39,16 @@ resource "aws_instance" "ec2_bastion_host" {
 
   ami                         = data.aws_ami.amazon_linux_2.id
   associate_public_ip_address = true
-  instance_type               = "t3.medium"
-  key_name                    = module.key_pair.key_pair_name
+  instance_type               = "t4g.small"
+  key_name                    = var.ec2_key_pair
   vpc_security_group_ids      = ["${aws_security_group.security_group_eks_bastion.id}"]
   subnet_id                   = element(module.vpc.public_subnets, 0)
 
   user_data = <<-EOF
             #!/bin/bash
+            export PATH="$PATH:/usr/local/bin"
+            echo 'export PATH="$PATH:/usr/local/bin"' >> /etc/profile
+
             hostnamectl --static set-hostname "AEWS-bastion-host"
 
             # Config convenience
@@ -56,34 +61,28 @@ resource "aws_instance" "ec2_bastion_host" {
 
             # Install Packages
             cd /root
-            yum -y install tree jq git htop lynx amazon-efs-utils
+            yum -y install tree jq git htop lynx amazon-efs-utils go
 
             # Install kubectl & helm
             #curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.26.2/2023-03-17/bin/linux/amd64/kubectl
-            curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.25.7/2023-03-17/bin/linux/amd64/kubectl
+            curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.25.7/2023-03-17/bin/linux/arm64/kubectl
             install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
             curl -s https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-            
+
             # Install eksctl
-            curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+            curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_arm64.tar.gz" | tar xz -C /tmp
             mv /tmp/eksctl /usr/local/bin
 
             # Install aws cli v2
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip >/dev/null 2>&1
+            curl -O 'https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip'
+            unzip awscli-exe-linux-aarch64.zip
             sudo ./aws/install
             complete -C '/usr/local/bin/aws_completer' aws
-            echo 'export AWS_PAGER=""' >>/etc/profile
-
-            # Install YAML Highlighter
-            wget https://github.com/andreazorzetto/yh/releases/download/v0.4.0/yh-linux-amd64.zip
-            unzip yh-linux-amd64.zip
-            mv yh /usr/local/bin/
 
             # Install krew
-            curl -LO https://github.com/kubernetes-sigs/krew/releases/download/v0.4.3/krew-linux_amd64.tar.gz
-            tar zxvf krew-linux_amd64.tar.gz
-            ./krew-linux_amd64 install krew
+            curl -LO https://github.com/kubernetes-sigs/krew/releases/download/v0.4.3/krew-linux_arm64.tar.gz
+            tar zxvf krew-linux_arm64.tar.gz
+            ./krew-linux_arm64 install krew
             export PATH="$PATH:/root/.krew/bin"
             echo 'export PATH="$PATH:/root/.krew/bin"' >> /etc/profile
 
@@ -105,11 +104,19 @@ resource "aws_instance" "ec2_bastion_host" {
             EOT
 
             # Install krew plugin
-            kubectl krew install ctx ns get-all  # ktop df-pv mtail tree
+            # kubectl krew install ctx ns get-all  # ktop df-pv mtail tree
+
+            kubectl krew install ctx ns # ktop df-pv mtail tree
 
             # Install Docker
             amazon-linux-extras install docker -y
             systemctl start docker && systemctl enable docker
+
+            # Use whatever tag is latest
+            # Install YAML Highlighter
+            wget https://github.com/andreazorzetto/yh/archive/refs/tags/v0.4.0.tar.gz
+            tar vzxf v0.4.0.tar.gz
+            cd ~/yh-0.4.0 && go build && sudo mv yh /usr/local/bin
 
             # Create SSH Keypair
             ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
@@ -138,7 +145,6 @@ resource "aws_instance" "ec2_bastion_host" {
     Name = "ec2_bastion_host"
   }
 }
-
 
 resource "aws_security_group" "security_group_eks_bastion" {
   name        = "security_group_eks_bastion"

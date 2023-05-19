@@ -7,7 +7,7 @@ variable "cluster_name" {
 }
 
 variable "cluster_node_group_name" {
-  default = "eks_cluster-nodegroup"
+  default = "nodegroup1"
 }
 
 variable "cluster_version" {

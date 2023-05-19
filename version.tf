@@ -31,4 +31,24 @@ terraform {
       version = ">= 1.14"
     }
   }
+
+  backend "s3" {
+    bucket         = "xgro-tfstate"
+    key            = "terraform.tfstate"
+    region         = "ap-northeast-2"
+    dynamodb_table = "terraform-lock"
+    encrypt        = true
+  }
+}
+
+# DynamoDB for terraform state lock
+resource "aws_dynamodb_table" "terraform_state_lock" {
+  name         = "terraform-lock"
+  hash_key     = "LockID"
+  billing_mode = "PAY_PER_REQUEST"
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
 }
