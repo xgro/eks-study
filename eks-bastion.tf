@@ -49,7 +49,7 @@ resource "aws_instance" "ec2_bastion_host" {
             export PATH="$PATH:/usr/local/bin"
             echo 'export PATH="$PATH:/usr/local/bin"' >> /etc/profile
 
-            hostnamectl --static set-hostname "AEWS-bastion-host"
+            hostnamectl --static set-hostname "${local.cluster_name}-bastion-EC2"
 
             # Config convenience
             echo 'alias vi=vim' >> /etc/profile
@@ -116,7 +116,7 @@ resource "aws_instance" "ec2_bastion_host" {
             # Install YAML Highlighter
             wget https://github.com/andreazorzetto/yh/archive/refs/tags/v0.4.0.tar.gz
             tar vzxf v0.4.0.tar.gz
-            cd ~/yh-0.4.0 && go build && sudo mv yh /usr/local/bin
+            cd ~/yh-0.4.0 && go build && sudo mv ~/yh-0.4.0/yh /usr/local/bin
 
             # Create SSH Keypair
             ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
@@ -131,10 +131,15 @@ resource "aws_instance" "ec2_bastion_host" {
             echo "export AWS_REGION=$AWS_DEFAULT_REGION" >> /etc/profile
             echo "export AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION" >> /etc/profile
             echo "export ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)" >> /etc/profile
+            echo "export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)" >> /etc/profile
 
             # CLUSTER_NAME
-            export CLUSTER_NAME=${var.cluster_name}
+            export CLUSTER_NAME=${local.cluster_name}
             echo "export CLUSTER_NAME=$CLUSTER_NAME" >> /etc/profile
+
+            # K8S Version
+            export KUBERNETES_VERSION=${local.kubernetes_version}
+            echo "export KUBERNETES_VERSION=$KUBERNETES_VERSION" >> /etc/profile
 
             echo 'cloudinit End!'
             EOF
